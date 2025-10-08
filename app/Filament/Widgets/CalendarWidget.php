@@ -17,7 +17,8 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema; 
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Saade\FilamentFullCalendar\Actions;
 use Filament\Notifications\Notification;
 use App\Filament\Forms\Fields\PhoneField;
@@ -121,11 +122,97 @@ class CalendarWidget extends FullCalendarWidget
 
     private function resolveDoctorId(int|string|null $value = null): ?int
     {
+        $currentDoctorId = $this->currentDoctorId();
+
+        if (! $this->canViewAllDoctors()) {
+            return $currentDoctorId;
+        }
+
         if ($value !== null && $value !== '') {
             return (int) $value;
         }
 
-        return $this->doctorId !== null ? (int) $this->doctorId : null;
+        return $this->doctorId !== null && $this->doctorId !== ''
+            ? (int) $this->doctorId
+            : null;
+    }
+
+    private function currentDoctorId(): ?int
+    {
+        $user = Auth::user();
+
+        if (! $user) {
+            return null;
+        }
+
+        return $user->hasRole('Doctor') ? (int) $user->id : null;
+    }
+
+    private function canViewAllDoctors(): bool
+    {
+        $user = Auth::user();
+
+        if (! $user) {
+            return false;
+        }
+
+        return $user->hasRole('Administrator') || $user->hasRole('Receptionist');
+    }
+
+    private function resolveDoctorColor(?int $doctorId): array
+    {
+        $default = [
+            'background' => '#64748b',
+            'border' => '#64748b',
+            'text' => '#f8fafc',
+        ];
+
+        if ($doctorId === null) {
+            return $default;
+        }
+
+        $palette = [
+            '#3b82f6', // blue-500
+            '#a855f7', // purple-500
+            '#f97316', // orange-500
+            '#22c55e', // green-500
+            '#ef4444', // red-500
+            '#0ea5e9', // sky-500
+            '#d946ef', // fuchsia-500
+            '#14b8a6', // teal-500
+            '#f59e0b', // amber-500
+            '#10b981', // emerald-500
+        ];
+
+        $index = abs(crc32((string) $doctorId)) % count($palette);
+        $background = $palette[$index];
+
+        return [
+            'background' => $background,
+            'border' => $background,
+            'text' => $this->getAccessibleTextColor($background),
+        ];
+    }
+
+    private function getAccessibleTextColor(string $hexColor): string
+    {
+        $hex = ltrim($hexColor, '#');
+
+        if (strlen($hex) === 3) {
+            $hex = preg_replace('/(.)/u', '$1$1', $hex);
+        }
+
+        if (strlen($hex) !== 6) {
+            return '#0f172a';
+        }
+
+        $r = hexdec(substr($hex, 0, 2));
+        $g = hexdec(substr($hex, 2, 2));
+        $b = hexdec(substr($hex, 4, 2));
+
+        $luminance = (0.299 * $r + 0.587 * $g + 0.114 * $b) / 255;
+
+        return $luminance > 0.6 ? '#0f172a' : '#f8fafc';
     }
 
     private function getBestPhoneForPatientId(null|int|string $id): array
@@ -564,6 +651,7 @@ class CalendarWidget extends FullCalendarWidget
         $endDb   = $this->toDbLocal($rangeEnd);
 
         return Appointment::query()
+            ->with(['patient', 'doctor'])
             ->when($this->resolveDoctorId(), fn ($q, $doctorId) => $q->where('doctor_id', $doctorId))
             ->where(function ($q) use ($startDb, $endDb) {
                 $q->whereBetween('start_datetime', [$startDb, $endDb])
@@ -577,6 +665,7 @@ class CalendarWidget extends FullCalendarWidget
             ->map(function (Appointment $a) {
                 $startLocal = $this->fromDbLocal($a->getRawOriginal('start_datetime'));
                 $endLocal   = $this->fromDbLocal($a->getRawOriginal('end_datetime'));
+                $color      = $this->resolveDoctorColor($a->doctor_id ? (int) $a->doctor_id : null);
 
                 return [
                     'id'    => (string) $a->id,
@@ -584,9 +673,14 @@ class CalendarWidget extends FullCalendarWidget
                     'start' => $startLocal?->toIso8601String(),
                     'end'   => $endLocal?->toIso8601String(),
                     'editable' => true,
+                    'backgroundColor' => $color['background'],
+                    'borderColor'     => $color['border'],
+                    'textColor'       => $color['text'],
                     'extendedProps' => [
                         'patient_id' => $a->patient_id,
                         'doctor_id'  => $a->doctor_id,
+                        'doctor_name' => $a->doctor?->display_name,
+                        'colors'      => $color,
                     ],
                 ];
             })

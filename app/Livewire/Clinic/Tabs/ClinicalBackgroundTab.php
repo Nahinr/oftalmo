@@ -60,6 +60,11 @@ class ClinicalBackgroundTab extends PatientTab
         ];
     }
 
+    protected function getFormStatePath(): string
+    {
+        return 'data';
+    }
+
     protected function getFormModel(): ClinicalBackground|string|null
     {
         return $this->record ?? ClinicalBackground::class;

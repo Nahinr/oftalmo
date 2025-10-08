@@ -7,7 +7,6 @@ use App\Models\Patient;
 use Filament\Forms\Get;
 use App\Rules\DniYearInRange;
 use App\Rules\UniqueDniDigits;
-use Illuminate\Validation\Rule;
 use Filament\Forms\Components\TextInput;
 
 class DniField
@@ -35,12 +34,11 @@ class DniField
             })
             ->rule(function (Get $get, ?Patient $record) {
                 $value = $get('dni');
-                if (!$value) return null; // sin DNI => sin unique
-                $currentId = $record?->getKey();
-                $digits = Dni::onlyDigits($value);
-                return Rule::unique('patients', 'dni')
-                    ->ignore($currentId)
-                    ->where(fn ($q) => $q->where('dni', $digits));
+                if (!$value) {
+                    return null; // sin DNI => sin unique
+                }
+
+                return new UniqueDniDigits($record?->getKey());
             });
     }
 }

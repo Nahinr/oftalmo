@@ -21,7 +21,7 @@ class UniqueDniDigits implements ValidationRule
             ->exists();
 
         if ($exists) {
-            $fail('El DNI ya está registrado.');
+            $fail('El número de identidad ya está registrado y no puede duplicarse.');
         }
     }
 }
