@@ -264,16 +264,20 @@ class ClinicalBackgroundTab extends PatientTab
                             Grid::make(2)->schema([
                                 TextInput::make('iop_ap_od')
                                     ->label('OD')
-                                    ->maxLength(4)
                                     ->placeholder('N/A')
                                     ->suffix('mmHg')
                                     ->numeric()
+                                    ->minValue(0)
+                                    ->maxValue(999.9)
+                                    ->step(0.1)
                                     ->rule('decimal:0,1'),
                                 TextInput::make('iop_ap_os')
                                     ->label('OS')
-                                    ->maxLength(4)
                                     ->placeholder('N/A')
                                     ->suffix('mmHg')
+                                    ->minValue(0)
+                                    ->maxValue(999.9)
+                                    ->step(0.1)
                                     ->numeric()
                                     ->rule('decimal:0,1'),
                             ]),

@@ -6,7 +6,7 @@
         wire:keydown.window.ctrl.s.prevent="$dispatch('save-clinical-background')"
         wire:keydown.window.meta.s.prevent="$dispatch('save-clinical-background')"
 
-        class="sticky top-16 z-40 bg-white dark:bg-gray-900
+        class="sticky top-16 z-10 bg-white dark:bg-gray-900
                border-b border-gray-200 dark:border-gray-800"
     >
         <div class="px-4 py-3 space-y-3">
@@ -141,7 +141,7 @@
                                 Nueva consulta
                             </x-filament::button>
                             @endcan
-                            
+
                         @elseif ($tab === 'recetas')
                             @can('prescription.create')
                             <x-filament::button
